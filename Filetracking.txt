@@ -1,0 +1,520 @@
+import { useContext, useState, useRef, useEffect } from 'react';
+import { Modal } from 'react-bootstrap';
+import { Formik, Form, Field, FieldArray, useField } from 'formik';
+import * as Yup from 'yup';
+import DateView from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { useFileTracking } from '../../hooks/useMutateHooks/useFileTracking';
+import { cmContext } from './Applications';
+import { useFetchList } from '../../hooks/useQueryHooks/useFetchList';
+import { courierList } from '../../data/data';
+import { useFileTrackingImage } from '../../hooks/useMutateHooks/useFileTrackingImage';
+import BasicLoader from '../ScanApplications/BasicLoader';
+import { keys } from '@mui/system';
+// import { errorToast } from '../ApplicationById/FileUploadComponent/DocumentAction/Actions/UpdateImageAllAction';
+import { errorToast } from '../../components/Toasts/Toasts';
+const DatePickerField = ({ name, value, onChange }) => {
+  return (
+    <DateView
+      selected={(value && new Date(value)) || null}
+      readOnly={true}
+      onChange={(val) => {
+        onChange(name, val);
+      }}
+      dateFormat="dd/MM/yyyy"
+      className="form-control"
+    />
+  );
+};
+
+const FileTracking = ({ selectedFlatRows, flag }) => {
+  const [fileTrackingOpen, setFileTrackingOpen] = useState(false);
+  const [propertyPaper, setPropertyPaper] = useState(false);
+  const [rcuStatus, setRcuStatus] = useState(false);
+  const [vetting, setVetting] = useState(false);
+  const { countRefetch, cmRefetch } = useContext(cmContext);
+  // useContext(cmContext);
+  const [addImagesCommentOpen, setAddImagesCommentOpen] = useState(false);
+  const userId = localStorage.getItem('UserId');
+  const [imageLink, setImageLink] = useState('');
+  const [otherr, setOtherr] = useState('');
+  console.log('selectedFlatRows', selectedFlatRows);
+
+  const addInputFile = useRef(null);
+
+  const fileTrackingImage = useFileTrackingImage();
+  const dropDownOptions = [
+    // { key: 'Select', value: '', title: 'Select' },
+    // { key: 0, value: false, title: 'Select' },
+    { key: 1, value: true, title: 'Yes' },
+    { key: 2, value: false, title: 'No' },
+  ];
+
+  // const courierOptions = [
+  //   { key: 'Select a Courier', value: '', title: 'Select' },
+  //   { key: 0, value: 'bluedart', title: 'BlueDart' },
+  //   { key: 1, value: 'bluedart', title: 'BlueDart' },
+  //   { key: 2, value: 'bluedart', title: 'BlueDart' },
+  //   { key: 3, value: 'bluedart', title: 'BlueDart' },
+  // ];
+  var oldFileNo = selectedFlatRows.map((data) => data.original.trackingNo);
+  const initialValues = {
+    loanNo: selectedFlatRows.map((data, index) => ({
+      loanNo: data.original.loanNo,
+      applicationNo: data.original.applicationNumber,
+      opsAssigned: data.original.makerAssigned,
+      legalAssigned: data.original.legalAssigned,
+      fileStatus: 'sent_file_to_ho',
+      creditUser: data.original.createdBy,
+      propertyPapers: false,
+      vettingStatus: false,
+      rcuState: false,
+      //  trackingNofk:''
+    })),
+    isFromCorrection:
+      localStorage.getItem('Status') === 'query' && localStorage.getItem('SubStatus') === 'physicalFile'
+        ? true
+        : localStorage.getItem('Status') === 'query' && localStorage.getItem('SubStatus') === 'scanFile'
+        ? true
+        : false,
+    correctionType:
+      localStorage.getItem('Status') === 'query' && localStorage.getItem('SubStatus') === 'physicalFile'
+        ? 'physicalIssue'
+        : localStorage.getItem('Status') === 'query' && localStorage.getItem('SubStatus') === 'scanFile'
+        ? 'scanIssue'
+        : null,
+
+    courierName: 'blue dart',
+    courierBy: '',
+    dateEntered: new Date(),
+    trackingNumber: '',
+    oldTrackingNo: oldFileNo[0],
+    cmRemark: '',
+    currentUserId: userId,
+    podLink: '',
+    // propertyPapers: [false],
+    // vettingStatus: [false],
+    // rcuStatus: [false],
+  };
+
+  //   {
+  //     "courierName":"blue dart",
+  //     "podLink":"sdak.sdad.sda",
+  //     "applicationNo":"Appl0001232",
+  //     "cmRemark":"",
+  //     "vettingStatusStatus": true,
+  //     "rcuStatus": true,
+  //     "trackingNumber":"1234567890",
+  //     "loanNo":"1234567890-"
+  // }
+  // const validationSchema = Yup.object({
+  //   propertyPapers: Yup.string().required('Required'),
+  //   vettingStatus: Yup.string().required('Required'),
+  //   rcu: Yup.string().required('Required'),
+  // });
+
+  const handleFileTrackingClose = () => {
+    setFileTrackingOpen(false);
+    setImageLink('');
+  };
+
+  const refetchAll = () => {
+    countRefetch();
+    cmRefetch();
+  };
+
+  const sendFileTracking = useFileTracking(refetchAll, handleFileTrackingClose);
+
+  const handleFileTrackingOpen = () => {
+    setFileTrackingOpen(true);
+  };
+
+  const onSubmit = async (values) => {
+    
+    sendFileTracking.mutateAsync(values);
+
+
+ 
+
+  };
+
+  const handleAddFileUpload = async (e, setFieldValue) => {
+    const { files } = e.target;
+    const body = new FormData();
+    const data = {
+      isTracking: true,
+    };
+    if (files && files.length) {
+      for (let i = 0; i < files.length; i++) {
+        body.append(`file`, files[i]);
+      }
+    }
+
+    body.append('imageData', JSON.stringify(data));
+    await fileTrackingImage.mutateAsync(body, {
+      onSuccess: (data1) => {
+        setFieldValue('podLink', data1?.data?.data);
+      },
+    });
+  };
+
+
+// const podimage=()=>{
+//   var x=document.getElementById("podLink").required;
+  
+//   document.getElementById("demo").innerHTML = x;
+// }
+  return (
+    <>
+      <Modal
+        size="lg"
+        // centered
+        show={fileTrackingOpen}
+        onHide={handleFileTrackingClose}
+        backdrop="static"
+        keyboard={false}
+        scrollable
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <h1>File Tracking</h1>
+          </Modal.Title>
+        </Modal.Header>
+        <Formik
+          // enableReinitialize={true}
+          initialValues={initialValues}
+          onSubmit={(values)=>
+            
+             onSubmit(values)
+          //  ( values?.courierName!=="by_hand"&&values?.podLink.length!==0)?onSubmit(values):
+          //  ( values?.courierName!=="by_hand"&&values?.podLink.length!==0)?onSubmit(values):null
+          }
+
+          // validationSchema={validationSchema}
+        >
+          {({ values,isSubmitting }) => {
+            return (
+              <Form>
+                <Modal.Body className="bg-light">
+                  <FieldArray name="loanNo">
+                    {({ insert, remove, push }) => (
+                      <div className="">
+                        {values.loanNo.map((loan, index) => (
+                          <div className="m-3 row" key={index}>
+                            <div className="col-6">
+                              <label htmlFor={`loanNo.${index}.loanNo`} className="form-label">
+                                Loan Account Number
+                              </label>
+                              <Field
+                                className="form-control col"
+                                type="text"
+                                id={`loanNo.${index}.loanNo`}
+                                name={`loanNo.${index}.loanNo`}
+                                disabled
+                              />
+                            </div>
+                            <div className="col">
+                              <label htmlFor={`loanNo.${index}.propertyPapers`} className="form-label">
+                                Property Papers
+                              </label>
+                              <Field
+                                className="form-select col"
+                                as="select"
+                                id={`loanNo.${index}.propertyPapers`}
+                                name={`loanNo.${index}.propertyPapers`}
+                              >
+                                {dropDownOptions.map((item) => (
+                                  <option key={item.key} value={JSON.parse(item.value)}>
+                                    {item.title}
+                                  </option>
+                                ))}
+                              </Field>
+                            </div>
+                            <div className="col">
+                              <label htmlFor={`loanNo.${index}.vettingStatus`} className="form-label">
+                                Vetting Status
+                              </label>
+                              <Field
+                                className="form-select col"
+                                as="select"
+                                id={`loanNo.${index}.vettingStatus`}
+                                name={`loanNo.${index}.vettingStatus`}
+                                //   onChange={(opt) => {
+
+                                //     setVetting(opt.value);
+                                //   }}
+                              >
+                                {dropDownOptions.map((item) => (
+                                  <option key={item.key} value={JSON.parse(item.value)}>
+                                    {item.title}
+                                  </option>
+                                ))}
+                              </Field>
+                            </div>
+                            <div className="col">
+                              <label htmlFor={`loanNo.${index}.rcuState`} className="form-label">
+                                RCU Status
+                              </label>
+                              <Field
+                                className="form-select col"
+                                as="select"
+                                id={`loanNo.${index}.rcuState`}
+                                //  onChange={(opt) => {
+
+                                //   setRcuStatus(opt.value);
+                                // }}
+                                name={`loanNo.${index}.rcuState`}
+                              >
+                                {dropDownOptions.map((item) => (
+                                  <option key={item.key} value={JSON.parse(item.value)}>
+                                    {item.title}
+                                  </option>
+                                ))}
+                              </Field>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="m-3 row">
+                          <div className="col">
+                            <label htmlFor={`courierName`} className="form-label">
+                              Courier Name
+                            </label>
+                            <Field className="form-select " as="select" id={`courierName`} name={`courierName`}>
+                              {courierList?.map((item) => (
+                                <option key={item.key} value={item.key}>
+                                  {item.value}
+                                  {console.log('item_value', item.value)}
+                                </option>
+                              ))}
+                            </Field>
+                          </div>
+                          {values.courierName === 'others' ? (
+                            <div className="col">
+                              <label htmlFor={`courierBy`} className="form-label">
+                                Others
+                              </label>
+                              <Field type="text" className="form-control " id={`courierBy`} name={`courierBy`}></Field>
+                            </div>
+                          ) : (
+                            ''
+                          )}
+
+                          <div className="col">
+                            <label htmlFor={`trackingNumber`} className="form-label">
+                              Tracking Number
+                            </label>
+                            {values.courierName === 'by_hand' ? (
+                              <Field
+                                className="form-control "
+                                type="text"
+                                maxlength="15"
+                                id={`trackingNumber`}
+                                name={`trackingNumber`}
+                              ></Field>
+                            ) : (
+                              <Field
+                                className="form-control "
+                                required
+                                type="text"
+                                maxlength="15"
+                                id={`trackingNumber`}
+                                name={`trackingNumber`}
+                              ></Field>
+                            )}
+                            {/* <Field
+                              className="form-control "
+                              required
+                              type="text"
+                              maxlength="15"
+                              id={`trackingNumber`}
+                              name={`trackingNumber`}
+                            ></Field> */}
+                          </div>
+                          <div className="col">
+                            <label htmlFor={`dateEntered`} className="form-label">
+                              Courier Date
+                            </label>
+                            <Field className="form-control " id={`dateEntered`} name={`dateEntered`}>
+                              {({ form, field }) => {
+                                const { setFieldValue } = form;
+                                return (
+                                  <DatePickerField
+                                    name="dateEntered"
+                                    value={values.dateEntered}
+                                    onChange={setFieldValue}
+                                  />
+                                );
+                              }}
+                            </Field>
+                          </div>
+
+                          {values.courierName === 'by_hand' ? (
+                            <div>
+                              Add POD:
+                              <Field className="form-control " id={`podLink`} name={`podLink`}>
+                                {({ form, field }) => {
+                                  const { setFieldValue } = form;
+                                  return (
+                                    <>
+                                      <input
+                                        style={{ display: 'none' }}
+                                        ref={addInputFile}
+                                        onChange={(e) => handleAddFileUpload(e, setFieldValue)}
+                                        type="file"
+                                      />
+                                      <button
+                                        disabled={fileTrackingImage.status === 'success'}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          addInputFile.current.click();
+                                        }}
+                                        className="btn btn-primary"
+                                      >
+                                        {fileTrackingImage.status === 'loading' ? (
+                                          <div class="spinner-border" role="status">
+                                            <span class="sr-only">Loading...</span>
+                                          </div>
+                                        ) : fileTrackingImage.status === 'success' ? (
+                                          'Added'
+                                        ) : (
+                                          'Add'
+                                        )}
+                                      </button>
+                                      <img src={values.podLink} style={{ width: '5rem' }} />
+                                    </>
+                                  );
+                                }}
+                              </Field>
+                            </div>
+                          ) : (
+                            <div>
+                              Add POD:
+                              <Field className="form-control " id={`podLink`} name={`podLink`}>
+                                {({ form, field }) => {
+                                  const { setFieldValue } = form;
+                                  return (
+                                    <>
+                                      <input
+                                        style={{ display: 'none' }}
+                                        ref={addInputFile}
+                                        onChange={(e) => handleAddFileUpload(e, setFieldValue)}
+                                        type="file"
+                                        required
+                                      
+                                      />
+                                      
+                                      <button
+                                        disabled={fileTrackingImage.status === 'success'}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          addInputFile.current.click();
+                                        }}
+                                        className="btn btn-primary"
+                                      >
+                                        {fileTrackingImage.status === 'loading' ? (
+                                          <div class="spinner-border" role="status">
+                                            <span class="sr-only">Loading...</span>
+                                          </div>
+                                        ) : fileTrackingImage.status=== 'success' ? (
+                                          'Added'
+                                        ) : (
+                                          'Add'
+                                        )}
+                                      </button>
+                                      <img src={values.podLink} style={{ width: '5rem' }} />
+                                    </>
+                                  );
+                                }}
+                              </Field>
+                          
+                            </div>
+                          )}
+                        </div>
+                        <p id="demo"></p>
+                        <div className="m-3 row">
+                          <label htmlFor={`cmRemark`} className="form-label">
+                            Remarks
+                          </label>
+                          <Field
+                            as="textarea"
+                            required
+                            className="form-control "
+                            id={`cmRemark`}
+                            name={`cmRemark`}
+                          ></Field>
+                        </div>
+                      </div>
+                    )}
+                  </FieldArray>
+                </Modal.Body>
+                <div className="d-flex flex-row justify-content-evenly mb-4">
+                  <button
+                    className="btn btn-outline-primary   rounded-5  btn-width"
+                    type="button"
+                    onClick={handleFileTrackingClose}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="btn btn-primary rounded-5 btn-width"
+                    type="submit"
+                    
+                  
+                                
+                    onSubmit={values} 
+                
+                    // onClick={errorToast("iuytr")}
+                    onClick={()=>{ 
+                      { (values?.courierName!=="by_hand" && values?.podLink.length===0)&& errorToast("POD is required")
+                    }}
+                 }
+                
+                    disabled={
+                      isSubmitting || values.propertyPapers === false
+                        ? true
+                        : false || values.vettingStatus === false
+                        ? true
+                        : false || values.rcuStatus === false
+                        ? true
+                        : false
+                    }
+                  >
+                    {isSubmitting ? 'Sending..' : 'Send'}
+                  </button>
+                </div>
+              </Form>
+            );
+          }}
+        </Formik>
+      </Modal>
+
+      {localStorage.getItem('Status') === 'verified' && localStorage.getItem('SubStatus') === 'approved' && (
+        <button
+          className="col btn btn-primary my-2  rounded rounded-5 fw-bold"
+          disabled={
+            selectedFlatRows.length === 0 ||
+            (selectedFlatRows[0]?.original?.sendFileToHo === 0 ? false : true) ||
+            (selectedFlatRows[0]?.original?.status === 'approved' ? false : true)
+          }
+          // }
+          onClick={handleFileTrackingOpen}
+        >
+          Send For File Tracking
+        </button>
+      )}
+      {((localStorage.getItem('Status') === 'query' && localStorage.getItem('SubStatus') === 'physicalFile') ||
+        flag) && (
+        <button
+          className="col btn btn-primary my-2  rounded rounded-5 fw-bold"
+          disabled={selectedFlatRows.length === 0}
+          // }
+          onClick={handleFileTrackingOpen}
+        >
+          Send For File Tracking
+        </button>
+      )}
+    </>
+  );
+};
+
+export default FileTracking;
